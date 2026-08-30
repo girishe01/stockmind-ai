@@ -168,6 +168,52 @@ def _score_balance_sheet(metrics: dict) -> float:
     return score
 
 
+def _calculate_data_completeness(metrics: dict) -> dict:
+    required_metrics = [
+        "revenue_cagr_5y",
+        "eps_cagr_5y",
+        "net_margin",
+        "fcf_margin",
+        "fcf_cagr_5y",
+        "net_debt_to_fcf",
+        "net_debt_to_ocf",
+        "current_ratio",
+        "debt_to_equity",
+    ]
+
+    available_count = sum(
+        1
+        for metric_name in required_metrics
+        if metrics.get(metric_name) is not None
+    )
+
+    total_count = len(required_metrics)
+
+    completeness = (
+        available_count / total_count
+    ) * 100
+
+    if completeness >= 85:
+        confidence = "high"
+    elif completeness >= 65:
+        confidence = "medium"
+    else:
+        confidence = "low"
+
+    missing_metrics = [
+        metric_name
+        for metric_name in required_metrics
+        if metrics.get(metric_name) is None
+    ]
+
+    return {
+        "data_completeness": round(completeness, 1),
+        "confidence": confidence,
+        "available_metrics": available_count,
+        "required_metrics": total_count,
+        "missing_metrics": missing_metrics,
+    }
+
 def get_fundamental_score(cik: str) -> dict:
     submissions = get_company_submissions(cik)
 
@@ -176,6 +222,7 @@ def get_fundamental_score(cik: str) -> dict:
     company_type = classify_company_type(sic)
 
     metrics = get_fundamental_metrics(cik)
+    #data_quality = _calculate_data_completeness(metrics)
 
     if company_type == "financial_company":
         return {
@@ -185,15 +232,18 @@ def get_fundamental_score(cik: str) -> dict:
             "company_type": company_type,
             "sic": sic,
             "sic_description": sic_description,
+            "data_quality": None,
             "reason": (
-                "Generic operating-company scoring is not applicable "
-                "to financial companies."
+                "Financial company detected. "
+                "The generic operating-company scoring model is not applicable. "
+                "A dedicated financial-company scoring model is required."
             ),
             "components": None,
             "metrics": metrics,
         }
 
     growth_score = _score_growth(metrics)
+    data_quality = _calculate_data_completeness(metrics)
     profitability_score = _score_profitability(metrics)
     cash_flow_score = _score_cash_flow(metrics)
     balance_sheet_score = _score_balance_sheet(metrics)
@@ -212,6 +262,7 @@ def get_fundamental_score(cik: str) -> dict:
         "company_type": company_type,
         "sic": sic,
         "sic_description": sic_description,
+        "data_quality": data_quality,
         "components": {
             "growth": growth_score,
             "profitability": profitability_score,
