@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from sqlalchemy import text
+from backend.app.services.sec_service import get_company_by_ticker
 
 from backend.app.database import engine
 
@@ -29,9 +30,9 @@ def health():
 
 @app.get("/api/companies/{ticker}")
 def get_company(ticker: str):
-    normalized_ticker = ticker.upper()
+    normalized_ticker = ticker.upper().strip()
 
-    query = text("""
+    select_query = text("""
         select
             id,
             ticker,
@@ -48,15 +49,50 @@ def get_company(ticker: str):
     """)
 
     with engine.connect() as connection:
-        result = connection.execute(
-            query,
-            {"ticker": normalized_ticker}
+        existing_company = connection.execute(
+            select_query,
+            {"ticker": normalized_ticker},
         ).mappings().first()
 
-    if result is None:
+    if existing_company:
+        return dict(existing_company)
+
+    sec_company = get_company_by_ticker(normalized_ticker)
+
+    if sec_company is None:
         raise HTTPException(
             status_code=404,
-            detail=f"Company {normalized_ticker} not found"
+            detail=f"Company {normalized_ticker} not found",
         )
 
-    return dict(result)
+    insert_query = text("""
+        insert into public.companies (
+            ticker,
+            company_name,
+            cik
+        )
+        values (
+            :ticker,
+            :company_name,
+            :cik
+        )
+        returning
+            id,
+            ticker,
+            company_name,
+            exchange,
+            sector,
+            industry,
+            cik,
+            country,
+            currency,
+            is_active
+    """)
+
+    with engine.begin() as connection:
+        new_company = connection.execute(
+            insert_query,
+            sec_company,
+        ).mappings().one()
+
+    return dict(new_company)
