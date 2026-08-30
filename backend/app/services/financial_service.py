@@ -994,6 +994,8 @@ def build_fundamental_metrics(summary: dict) -> dict:
         "eps_cagr_5y": None,
         "fcf_cagr_3y": None,
         "fcf_cagr_5y": None,
+        "fcf_growth_1y": None,
+        "fcf_consecutive_declines": 0,
         "cash": None,
         "total_debt": None,
         "net_debt": None,
@@ -1119,6 +1121,32 @@ def build_fundamental_metrics(summary: dict) -> dict:
                 ),
             }
         )
+
+    if len(fcf_history) >= 2:
+        previous_fcf = fcf_history[-2]["value"]
+        latest_fcf = fcf_history[-1]["value"]
+
+        if previous_fcf != 0:
+            metrics["fcf_growth_1y"] = (
+                latest_fcf - previous_fcf
+            ) / abs(previous_fcf)
+
+    decline_count = 0
+
+    for index in range(
+        len(fcf_history) - 1,
+        0,
+        -1,
+    ):
+        current_fcf = fcf_history[index]["value"]
+        previous_fcf = fcf_history[index - 1]["value"]
+
+        if current_fcf < previous_fcf:
+            decline_count += 1
+        else:
+            break
+
+    metrics["fcf_consecutive_declines"] = decline_count
 
     if len(fcf_history) >= 4:
         metrics["fcf_cagr_3y"] = calculate_cagr(
