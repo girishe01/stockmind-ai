@@ -999,6 +999,8 @@ def build_fundamental_metrics(summary: dict) -> dict:
         "cash": None,
         "total_debt": None,
         "net_debt": None,
+        "net_debt_to_fcf": None,
+        "net_debt_to_ocf": None,
         "shareholders_equity": None,
         "debt_to_equity": None,
         "current_assets": None,
@@ -1063,6 +1065,20 @@ def build_fundamental_metrics(summary: dict) -> dict:
 
         if equity and equity > 0:
             metrics["debt_to_equity"] = total_debt / equity
+
+    net_debt = metrics["net_debt"]
+    free_cash_flow = metrics["free_cash_flow"]
+
+    if net_debt is not None:
+        if free_cash_flow is not None and free_cash_flow > 0:
+            metrics["net_debt_to_fcf"] = (
+                net_debt / free_cash_flow
+            )
+
+    if ocf is not None and ocf > 0:
+        metrics["net_debt_to_ocf"] = (
+            net_debt / ocf
+        )
 
     if current_assets is not None and current_liabilities:
         metrics["current_ratio"] = (

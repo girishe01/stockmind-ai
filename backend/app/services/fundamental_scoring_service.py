@@ -114,28 +114,56 @@ def _score_cash_flow(metrics: dict) -> float:
 
 
 def _score_balance_sheet(metrics: dict) -> float:
-    debt_to_equity = metrics.get("debt_to_equity")
+    net_debt_to_fcf = metrics.get("net_debt_to_fcf")
+    net_debt_to_ocf = metrics.get("net_debt_to_ocf")
     current_ratio = metrics.get("current_ratio")
+    debt_to_equity = metrics.get("debt_to_equity")
 
     score = 0
 
-    if debt_to_equity is not None:
-        if debt_to_equity <= 0.25:
-            score += 15
-        elif debt_to_equity <= 0.50:
+    # Primary leverage measure: max 12 points
+    if net_debt_to_fcf is not None:
+        if net_debt_to_fcf <= 0:
             score += 12
-        elif debt_to_equity <= 1.00:
+        elif net_debt_to_fcf <= 1:
+            score += 11
+        elif net_debt_to_fcf <= 2:
             score += 8
-        elif debt_to_equity <= 2.00:
-            score += 4
+        elif net_debt_to_fcf <= 3:
+            score += 5
+        elif net_debt_to_fcf <= 4:
+            score += 2
 
+    # Secondary leverage check: max 6 points
+    if net_debt_to_ocf is not None:
+        if net_debt_to_ocf <= 0:
+            score += 6
+        elif net_debt_to_ocf <= 1:
+            score += 5
+        elif net_debt_to_ocf <= 2:
+            score += 3
+        elif net_debt_to_ocf <= 3:
+            score += 1
+
+    # Liquidity: max 4 points
     if current_ratio is not None:
         if current_ratio >= 1.5:
-            score += 10
+            score += 4
         elif current_ratio >= 1.2:
-            score += 8
+            score += 3
         elif current_ratio >= 1.0:
-            score += 5
+            score += 2
+        elif current_ratio >= 0.75:
+            score += 1
+
+    # Supporting capital-structure signal: max 3 points
+    if debt_to_equity is not None:
+        if debt_to_equity <= 0.5:
+            score += 3
+        elif debt_to_equity <= 1.0:
+            score += 2
+        elif debt_to_equity <= 2.0:
+            score += 1
 
     return score
 
