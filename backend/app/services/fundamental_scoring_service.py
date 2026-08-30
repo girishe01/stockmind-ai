@@ -1,4 +1,8 @@
 from backend.app.services.financial_service import get_fundamental_metrics
+from backend.app.services.sec_service import (
+    classify_company_type,
+    get_company_submissions,
+)
 
 
 def _score_growth(metrics: dict) -> float:
@@ -137,7 +141,29 @@ def _score_balance_sheet(metrics: dict) -> float:
 
 
 def get_fundamental_score(cik: str) -> dict:
+    submissions = get_company_submissions(cik)
+
+    sic = submissions.get("sic")
+    sic_description = submissions.get("sicDescription")
+    company_type = classify_company_type(sic)
+
     metrics = get_fundamental_metrics(cik)
+
+    if company_type == "financial_company":
+        return {
+            "score_status": "not_applicable",
+            "fundamental_score": None,
+            "max_score": 100,
+            "company_type": company_type,
+            "sic": sic,
+            "sic_description": sic_description,
+            "reason": (
+                "Generic operating-company scoring is not applicable "
+                "to financial companies."
+            ),
+            "components": None,
+            "metrics": metrics,
+        }
 
     growth_score = _score_growth(metrics)
     profitability_score = _score_profitability(metrics)
@@ -152,8 +178,12 @@ def get_fundamental_score(cik: str) -> dict:
     )
 
     return {
+        "score_status": "scored",
         "fundamental_score": total_score,
         "max_score": 100,
+        "company_type": company_type,
+        "sic": sic,
+        "sic_description": sic_description,
         "components": {
             "growth": growth_score,
             "profitability": profitability_score,

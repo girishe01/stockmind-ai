@@ -55,7 +55,46 @@ def get_company(ticker: str):
         ).mappings().first()
 
     if existing_company:
-        return dict(existing_company)
+        company = dict(existing_company)
+
+    if company["cik"] is None:
+        sec_company = get_company_by_ticker(normalized_ticker)
+
+        if sec_company is not None:
+            update_query = text("""
+                update public.companies
+                set
+                    company_name = coalesce(company_name, :company_name),
+                    cik = coalesce(cik, :cik),
+                    updated_at = now()
+                where ticker = :ticker
+                returning
+                    id,
+                    ticker,
+                    company_name,
+                    exchange,
+                    sector,
+                    industry,
+                    cik,
+                    country,
+                    currency,
+                    is_active
+            """)
+
+            with engine.begin() as connection:
+                updated_company = connection.execute(
+                    update_query,
+                    {
+                        "ticker": normalized_ticker,
+                        "company_name": sec_company["company_name"],
+                        "cik": sec_company["cik"],
+                    },
+                ).mappings().one()
+
+            return dict(updated_company)
+
+    return company
+
 
     sec_company = get_company_by_ticker(normalized_ticker)
 
